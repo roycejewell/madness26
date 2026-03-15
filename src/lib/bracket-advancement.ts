@@ -32,5 +32,6 @@ export function getNextRoundSlot(currentSlot: number): { slot: number; isTop: bo
  * Final Four: South vs West (one game), East vs Midwest (other game)
  * Championship: two F4 winners
  */
-export const REGION_ORDER = ['south', 'east', 'west', 'midwest'] as const;
+/** Display order on bracket screen: top to bottom */
+export const REGION_ORDER = ['east', 'south', 'west', 'midwest'] as const;
 export type RegionKey = (typeof REGION_ORDER)[number];
