@@ -1,26 +1,111 @@
 @import "tailwindcss";
 
+/* Google Fonts loaded in layout */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #1a1a2e;
+  --surface: #16213e;
+  --card: #0f3460;
+  --accent-yellow: #f5a623;
+  --accent-red: #e94560;
+  --accent-green: #4caf50;
+  --text-primary: #eaeaea;
+  --text-muted: #7a7a9a;
+  --eliminated: #3a3a5a;
+  --border-pixel: 2px solid var(--text-primary);
+  --shadow-pixel: 4px 4px 0px #000;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-card: var(--card);
+  --color-accent-yellow: var(--accent-yellow);
+  --color-accent-red: var(--accent-red);
+  --color-accent-green: var(--accent-green);
+  --color-text-primary: var(--text-primary);
+  --color-text-muted: var(--text-muted);
+  --color-eliminated: var(--eliminated);
+  --font-display: var(--font-press-start);
+  --font-body: var(--font-vt323);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: var(--font-vt323), monospace;
+  max-width: 600px;
+  margin: 0 auto;
+  min-height: 100dvh;
+}
+
+/* Pixel-style borders and shadows */
+.pixel-border {
+  border: 2px solid var(--text-primary);
+  box-shadow: 4px 4px 0px #000;
+}
+
+.pixel-btn {
+  border: 2px solid var(--text-primary);
+  box-shadow: 4px 4px 0px #000;
+  transition: transform 0.05s ease, box-shadow 0.05s ease;
+}
+
+.pixel-btn:active {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0px #000;
+}
+
+/* Winner row: solid green highlight */
+.winner-glow {
+  background-color: rgba(76, 175, 80, 0.25);
+  border-radius: 2px;
+  box-shadow: inset 0 0 0 2px var(--accent-green);
+}
+
+.eliminated-team {
+  color: var(--text-primary);
+  text-decoration: line-through;
+  opacity: 0.95;
+}
+
+.page-padding {
+  padding: 16px;
+}
+
+/* Live draft: picked team card highlight (runs 0.6s then card is removed) */
+.live-draft-picked-card {
+  animation: live-draft-picked 0.6s ease-out forwards;
+}
+
+.live-draft-picked-name {
+  animation: live-draft-pulse 0.6s ease-in-out 4;
+}
+
+@keyframes live-draft-picked {
+  0% {
+    opacity: 1;
+    transform: scale(1.02);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.02);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.98);
+    pointer-events: none;
+  }
+}
+
+@keyframes live-draft-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.85; }
 }

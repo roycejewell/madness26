@@ -1,36 +1,43 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# March Madness Snake Draft Scorer
 
-## Getting Started
+Mobile-only (max-width 600px) app for running an 8-person snake draft and scoring March Madness by **seed × round**. Built with Next.js (App Router) and Supabase, retro 8-bit aesthetic.
 
-First, run the development server:
+## Setup
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+1. **Supabase**
+   - Create a project at [supabase.com](https://supabase.com).
+   - In SQL Editor, run `supabase/migrations/001_schema.sql`.
+   - In Dashboard → Database → Replication, add **teams** and **games** to the Realtime publication.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. **Env**
+   - Copy `.env.local.example` to `.env.local`.
+   - Set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` from your Supabase project settings.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+3. **Run**
+   - `npm install` then `npm run dev`.
+   - Open [http://localhost:3000](http://localhost:3000).
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Flow
 
-## Learn More
+- **Phase 1 — Setup:** `/admin/setup` — paste bracket JSON, import teams and generate R64 (and all later round) games.
+- **Phase 2 — Draft:** `/admin/draft-order` — set 8 player names in pick order. `/admin/draft-admin` — record picks; `/live-draft` — display available teams for the room.
+- **Phase 3 — Tournament:** `/bracket` — tap games to set winner (advances team to next round). `/scoreboard` — live scores. `/draft` — rosters.
 
-To learn more about Next.js, take a look at the following resources:
+## Scoring
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Points per win = **winner’s seed × round number** (Round of 64 = 1, R32 = 2, … Championship = 6). First Four play-in games are not scored.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Routes
 
-## Deploy on Vercel
+| Route | Purpose |
+|-------|--------|
+| `/` | Home + links |
+| `/bracket` | Bracket tabs, game cards, set winner modal |
+| `/scoreboard` | Ranked scores + teams remaining |
+| `/draft` | Player rosters |
+| `/admin/setup` | Bracket JSON import |
+| `/admin/draft-order` | Set 8 player names |
+| `/admin/draft-admin` | Record draft picks, undo last |
+| `/live-draft` | Read-only available teams |
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+No authentication; admin routes are security-by-obscurity.
