@@ -64,7 +64,9 @@ export default function GameCard({
           </span>
         )}
         {topWon && topTeam && (
-          <span className="text-[var(--accent-yellow)] shrink-0">★ +{points(topTeam.seed)}</span>
+          <span className="text-[var(--accent-yellow)] shrink-0">
+            ★ +{points(topTeam, bottomTeam ?? null)}
+          </span>
         )}
       </div>
       {/* Bottom row */}
@@ -82,7 +84,9 @@ export default function GameCard({
           </span>
         )}
         {bottomWon && bottomTeam && (
-          <span className="text-[var(--accent-yellow)] shrink-0">★ +{points(bottomTeam.seed)}</span>
+          <span className="text-[var(--accent-yellow)] shrink-0">
+            ★ +{points(bottomTeam, topTeam ?? null)}
+          </span>
         )}
       </div>
     </button>
