@@ -1,33 +1,13 @@
 import type { Game, Team } from '@/lib/supabase/types';
 
-/**
- * Points per win = winning team's seed × round number
- * Round: 1=R64, 2=R32, 3=S16, 4=E8, 5=F4, 6=Championship
- */
-export function pointsForGame(winnerSeed: number, round: number): number {
-  return winnerSeed * round;
-}
-
-/**
- * Compute total score for a player from games where they own the winner.
- */
-export function computePlayerScore(
-  playerId: string,
-  games: Array<Pick<Game, 'round' | 'winner_id'>>,
-  teams: Array<Pick<Team, 'id' | 'seed' | 'owner_id'>>
-): number {
-  const ownerByTeamId = new Map(teams.map((t) => [t.id, t.owner_id]));
-  const teamById = new Map(teams.map((t) => [t.id, t]));
-  let total = 0;
-  for (const g of games) {
-    if (!g.winner_id) continue;
-    const ownerId = ownerByTeamId.get(g.winner_id);
-    if (ownerId !== playerId) continue;
-    const winner = teamById.get(g.winner_id);
-    if (winner) total += pointsForGame(winner.seed, g.round);
-  }
-  return total;
-}
+export const ROUND_BASE_POINTS: Record<number, number> = {
+  1: 2,  // R64
+  2: 4,  // R32
+  3: 6,  // S16
+  4: 8,  // E8
+  5: 10, // F4
+  6: 15, // Champ
+};
 
 const ROUND_LABELS: Record<number, string> = {
   1: 'R64',
@@ -37,6 +17,60 @@ const ROUND_LABELS: Record<number, string> = {
   5: 'F4',
   6: 'Champ',
 };
+
+/**
+ * Compute points for a single game win, including upset bonus.
+ * Upset = winner has a worse seed number than the loser (e.g. 12 beats 5).
+ * Bonus = (winnerSeed - loserSeed).
+ */
+export function pointsForGame(
+  round: number,
+  winnerSeed: number,
+  loserSeed: number | null
+): number {
+  const base = ROUND_BASE_POINTS[round] ?? 0;
+  if (!loserSeed) return base;
+  const diff = winnerSeed - loserSeed;
+  const upsetBonus = diff > 0 ? diff : 0;
+  return base + upsetBonus;
+}
+
+/**
+ * Compute total score for a player from games where they own the winner.
+ */
+export function computePlayerScore(
+  playerId: string,
+  games: Array<Pick<Game, 'round' | 'winner_id' | 'top_team_id' | 'bottom_team_id'>>,
+  teams: Array<Pick<Team, 'id' | 'seed' | 'owner_id'>>
+): number {
+  const ownerByTeamId = new Map(teams.map((t) => [t.id, t.owner_id]));
+  const teamById = new Map(teams.map((t) => [t.id, t]));
+  let total = 0;
+
+  for (const g of games) {
+    if (!g.winner_id) continue;
+    const ownerId = ownerByTeamId.get(g.winner_id);
+    if (ownerId !== playerId) continue;
+
+    const winner = teamById.get(g.winner_id);
+    if (!winner) continue;
+
+    let loserSeed: number | null = null;
+    if (g.top_team_id && g.bottom_team_id) {
+      if (g.winner_id === g.top_team_id) {
+        const loser = teamById.get(g.bottom_team_id);
+        loserSeed = loser?.seed ?? null;
+      } else if (g.winner_id === g.bottom_team_id) {
+        const loser = teamById.get(g.top_team_id);
+        loserSeed = loser?.seed ?? null;
+      }
+    }
+
+    total += pointsForGame(g.round, winner.seed, loserSeed);
+  }
+
+  return total;
+}
 
 export type TeamScoreBreakdown = {
   teamId: string;
@@ -53,7 +87,7 @@ export type TeamScoreBreakdown = {
  */
 export function getPlayerScoreBreakdown(
   playerId: string,
-  games: Array<Pick<Game, 'round' | 'winner_id'>>,
+  games: Array<Pick<Game, 'round' | 'winner_id' | 'top_team_id' | 'bottom_team_id'>>,
   teams: Array<Pick<Team, 'id' | 'seed' | 'name' | 'abbr' | 'is_first_four' | 'owner_id'>>
 ): TeamScoreBreakdown[] {
   const ownerByTeamId = new Map(teams.map((t) => [t.id, t.owner_id]));
@@ -66,7 +100,19 @@ export function getPlayerScoreBreakdown(
     if (ownerId !== playerId) continue;
     const winner = teamById.get(g.winner_id);
     if (!winner) continue;
-    const pts = pointsForGame(winner.seed, g.round);
+
+    let loserSeed: number | null = null;
+    if (g.top_team_id && g.bottom_team_id) {
+      if (g.winner_id === g.top_team_id) {
+        const loser = teamById.get(g.bottom_team_id);
+        loserSeed = loser?.seed ?? null;
+      } else if (g.winner_id === g.bottom_team_id) {
+        const loser = teamById.get(g.top_team_id);
+        loserSeed = loser?.seed ?? null;
+      }
+    }
+
+    const pts = pointsForGame(g.round, winner.seed, loserSeed);
     if (!byTeam.has(g.winner_id)) byTeam.set(g.winner_id, { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 });
     const row = byTeam.get(g.winner_id)!;
     row[g.round as 1 | 2 | 3 | 4 | 5 | 6] = (row[g.round as 1 | 2 | 3 | 4 | 5 | 6] ?? 0) + pts;

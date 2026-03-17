@@ -1,6 +1,7 @@
 'use client';
 
 import PlayerAvatar from '@/components/PlayerAvatar';
+import { ROUND_BASE_POINTS } from '@/lib/scoring';
 import type { Game, Team, Player } from '@/lib/supabase/types';
 
 function teamDisplayName(team: Team | null | undefined): string {
@@ -28,7 +29,14 @@ export default function GameCard({
   round,
   onTap,
 }: GameCardProps) {
-  const points = (seed: number) => seed * round;
+  const points = (team: Team | null | undefined, opponent: Team | null | undefined) => {
+    if (!team) return 0;
+    const base = ROUND_BASE_POINTS[round] ?? 0;
+    if (!opponent) return base;
+    const diff = team.seed - opponent.seed;
+    const upsetBonus = diff > 0 ? diff : 0;
+    return base + upsetBonus;
+  };
   const topOwner = topTeam?.owner_id ? playersById.get(topTeam.owner_id) : null;
   const bottomOwner = bottomTeam?.owner_id ? playersById.get(bottomTeam.owner_id) : null;
   const topWon = winnerId && topTeam && winnerId === topTeam.id;
@@ -51,7 +59,9 @@ export default function GameCard({
         <span className="shrink-0">{topTeam ? `[${topTeam.seed}]` : '—'}</span>
         <span className="flex-1 truncate">{teamDisplayName(topTeam)}</span>
         {topTeam && !winnerId && (
-          <span className="text-[var(--accent-yellow)] shrink-0">+{points(topTeam.seed)}</span>
+          <span className="text-[var(--accent-yellow)] shrink-0">
+            +{points(topTeam, bottomTeam ?? null)}
+          </span>
         )}
         {topWon && topTeam && (
           <span className="text-[var(--accent-yellow)] shrink-0">★ +{points(topTeam.seed)}</span>
@@ -67,7 +77,9 @@ export default function GameCard({
         <span className="shrink-0">{bottomTeam ? `[${bottomTeam.seed}]` : '—'}</span>
         <span className="flex-1 truncate">{teamDisplayName(bottomTeam)}</span>
         {bottomTeam && !winnerId && (
-          <span className="text-[var(--accent-yellow)] shrink-0">+{points(bottomTeam.seed)}</span>
+          <span className="text-[var(--accent-yellow)] shrink-0">
+            +{points(bottomTeam, topTeam ?? null)}
+          </span>
         )}
         {bottomWon && bottomTeam && (
           <span className="text-[var(--accent-yellow)] shrink-0">★ +{points(bottomTeam.seed)}</span>
