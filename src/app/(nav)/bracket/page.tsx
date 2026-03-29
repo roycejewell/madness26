@@ -6,7 +6,7 @@ import { useRealtimeGames } from '@/hooks/useRealtimeGames';
 import { useRealtimeTeams } from '@/hooks/useRealtimeTeams';
 import GameCard from '@/components/GameCard';
 import GameResultModal from '@/components/GameResultModal';
-import { getNextRoundSlot, REGION_ORDER } from '@/lib/bracket-advancement';
+import { getFinalFourAdvancement, getNextRoundSlot, REGION_ORDER } from '@/lib/bracket-advancement';
 import type { Game, Team, Player } from '@/lib/supabase/types';
 
 const ROUND_LABELS: Record<number, string> = {
@@ -25,26 +25,26 @@ function getNextGameForWinner(
   bracketSlot: number,
   allGames: Game[]
 ): { gameId: string; isTop: boolean } | null {
-  if (round >= 6) return null;
-  if (round === 4) {
-    const f4Games = allGames.filter((g) => g.round === 5);
-    const r = region as 'south' | 'east' | 'west' | 'midwest';
-    const f4Slot = (r === 'south' || r === 'west') ? 1 : 2;
-    const isTop = (r === 'south' || r === 'east');
-    const f4 = f4Games.find((g) => g.bracket_slot === f4Slot);
+  const rn = Number(round);
+  if (rn >= 6) return null;
+  if (rn === 4) {
+    const adv = getFinalFourAdvancement(region);
+    if (!adv) return null;
+    const f4 = allGames.find((g) => Number(g.round) === 5 && Number(g.bracket_slot) === adv.f4Slot);
     if (!f4) return null;
-    return { gameId: f4.id, isTop };
+    return { gameId: f4.id, isTop: adv.isTop };
   }
-  if (round === 5) {
-    const champGames = allGames.filter((g) => g.round === 6);
-    const champ = champGames.find((g) => g.bracket_slot === 1);
+  if (rn === 5) {
+    const champ = allGames.find((g) => Number(g.round) === 6 && Number(g.bracket_slot) === 1);
     if (!champ) return null;
-    return { gameId: champ.id, isTop: bracketSlot === 1 };
+    return { gameId: champ.id, isTop: Number(bracketSlot) === 1 };
   }
   const { slot: nextSlot, isTop } = getNextRoundSlot(bracketSlot);
-  const nextRound = round + 1;
-  const nextGames = allGames.filter((g) => g.round === nextRound && g.region === region);
-  const nextGame = nextGames.find((g) => g.bracket_slot === nextSlot);
+  const nextRound = rn + 1;
+  const nextGames = allGames.filter(
+    (g) => Number(g.round) === nextRound && String(g.region).toLowerCase() === String(region).toLowerCase()
+  );
+  const nextGame = nextGames.find((g) => Number(g.bracket_slot) === nextSlot);
   if (!nextGame) return null;
   return { gameId: nextGame.id, isTop };
 }

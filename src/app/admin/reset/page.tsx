@@ -3,8 +3,9 @@
 import { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { parseBracketJson } from '@/lib/bracket-import';
+import { getFinalFourAdvancement } from '@/lib/bracket-advancement';
 
-type Confirming = 'games' | 'draft' | 'players' | null;
+type Confirming = 'games' | 'draft' | 'players' | 'f4' | null;
 
 async function runBracketImport(json: string) {
   const { teams: teamRows, r64Games } = parseBracketJson(json);
@@ -122,6 +123,73 @@ export default function AdminResetPage() {
       if (ids.length > 0) await supabase.from('players').delete().in('id', ids);
       await supabase.from('teams').update({ owner_id: null }).neq('id', '00000000-0000-0000-0000-000000000000');
       setMessage({ type: 'success', text: 'All players and draft picks removed. Set names again on Draft Order.' });
+    } catch (e) {
+      setMessage({ type: 'error', text: e instanceof Error ? e.message : 'Failed' });
+    } finally {
+      setLoading(false);
+      setConfirming(null);
+    }
+  };
+
+  const resyncFinalFour = async () => {
+    setLoading(true);
+    setMessage(null);
+    try {
+      const { data: games, error } = await supabase.from('games').select('*');
+      if (error) throw error;
+      const list = games ?? [];
+
+      const f4games = list.filter((g) => Number(g.round) === 5);
+      const f4_1 = f4games.find((g) => Number(g.bracket_slot) === 1);
+      const f4_2 = f4games.find((g) => Number(g.bracket_slot) === 2);
+      if (!f4_1 || !f4_2) throw new Error('Final Four games not found');
+
+      let top1: string | null = null;
+      let bottom1: string | null = null;
+      let top2: string | null = null;
+      let bottom2: string | null = null;
+
+      const regions = ['south', 'east', 'west', 'midwest'] as const;
+      for (const reg of regions) {
+        const e8 = list.find(
+          (g) =>
+            Number(g.round) === 4 &&
+            String(g.region).toLowerCase() === reg &&
+            Number(g.bracket_slot) === 1
+        );
+        if (!e8?.winner_id) continue;
+        const adv = getFinalFourAdvancement(reg);
+        if (!adv) continue;
+        if (adv.f4Slot === 1) {
+          if (adv.isTop) top1 = e8.winner_id;
+          else bottom1 = e8.winner_id;
+        } else {
+          if (adv.isTop) top2 = e8.winner_id;
+          else bottom2 = e8.winner_id;
+        }
+      }
+
+      await supabase
+        .from('games')
+        .update({ top_team_id: top1, bottom_team_id: bottom1, winner_id: null })
+        .eq('id', f4_1.id);
+      await supabase
+        .from('games')
+        .update({ top_team_id: top2, bottom_team_id: bottom2, winner_id: null })
+        .eq('id', f4_2.id);
+
+      const champ = list.find((g) => Number(g.round) === 6 && Number(g.bracket_slot) === 1);
+      if (champ) {
+        await supabase
+          .from('games')
+          .update({ top_team_id: null, bottom_team_id: null, winner_id: null })
+          .eq('id', champ.id);
+      }
+
+      setMessage({
+        type: 'success',
+        text: 'Final Four slots rebuilt from Elite Eight winners (South vs East, West vs Midwest). F4 and championship winners cleared—re-enter if needed.',
+      });
     } catch (e) {
       setMessage({ type: 'error', text: e instanceof Error ? e.message : 'Failed' });
     } finally {
@@ -267,6 +335,43 @@ export default function AdminResetPage() {
             className="pixel-btn w-full py-2 text-[10px] bg-[var(--card)] text-[var(--text-primary)]"
           >
             RESET PLAYER ORDER
+          </button>
+        )}
+      </section>
+
+      {/* Resync Final Four */}
+      <section className="pixel-border bg-[var(--card)] p-3 mb-4">
+        <h2 className="text-[10px] text-[var(--accent-yellow)] mb-1">RESYNC FINAL FOUR</h2>
+        <p className="text-[10px] text-[var(--text-muted)] mb-2" style={{ fontFamily: 'var(--font-vt323), monospace' }}>
+          Rebuilds the two Final Four games from current Elite Eight winners: game 1 = South vs East, game 2 = West vs Midwest. Clears F4 winners and the championship game so you can re-pick. Use this once if pairings were wrong before the fix.
+        </p>
+        {confirming === 'f4' ? (
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={resyncFinalFour}
+              disabled={loading}
+              className="pixel-btn flex-1 py-2 text-[10px] bg-[var(--accent-red)] text-white disabled:opacity-50"
+            >
+              YES, RESYNC
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirming(null)}
+              disabled={loading}
+              className="pixel-btn flex-1 py-2 text-[10px] bg-[var(--card)] text-[var(--text-primary)]"
+            >
+              CANCEL
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setConfirming('f4')}
+            disabled={loading}
+            className="pixel-btn w-full py-2 text-[10px] bg-[var(--card)] text-[var(--text-primary)]"
+          >
+            RESYNC FINAL FOUR FROM ELITE EIGHT
           </button>
         )}
       </section>
